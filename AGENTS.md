@@ -1,4 +1,4 @@
-# Agent guide for neuraldeep-whisper-1
+# Agent guide for neuraldeep-transcriptions
 
 Instructions for AI coding agents (Codex, Coddy, Claude Code and others) working **inside this
 repository**. To *use* the skill, read [SKILL.md](SKILL.md) and [STARTER_RELAY.md](STARTER_RELAY.md).
@@ -31,7 +31,7 @@ uploads:
 ## The shared helper
 
 `scripts/client.py` is shared by every neuraldeep-* repo (speechcore, search, ocr, images,
-whisper-1) and must stay identical across them except for the `SERVICE = "..."` line. Port a
+transcriptions) and must stay identical across them except for the `SERVICE = "..."` line. Port a
 change to every sibling repo, each through its own PR. Check a port against a sibling checkout:
 
 ```bash

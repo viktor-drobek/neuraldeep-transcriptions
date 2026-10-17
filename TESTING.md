@@ -124,6 +124,15 @@ undocumented endpoints, and keep the answer when a supervisor says the task is n
 done. The description says so too. The documentation test for it failed first.
 **60 tests passed**, both normally and with `LC_ALL=C PYTHONUTF8=0`.
 
+## Repository renamed
+
+The repository is now `neuraldeep-transcriptions` (formerly `neuraldeep-whisper-1`;
+GitHub redirects the old URL). The skill name, README install commands and
+AGENTS.md follow it; the model, the `whisper` service and the `whisper-1` price ID
+are unchanged. Commit references above keep the old repository name.
+`test_documentation_names_the_real_endpoint_and_block` checked the old skill name
+and failed first after it was updated.
+
 ## Final results
 
 - `python3 -X warn_default_encoding -B -m unittest discover -s tests`:

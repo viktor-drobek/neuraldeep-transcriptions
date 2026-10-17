@@ -117,7 +117,7 @@ class WhisperTests(unittest.TestCase):
     def test_documentation_names_the_real_endpoint_and_block(self):
         root = Path(__file__).parents[1]
         skill = (root / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("name: neuraldeep-whisper-1\n", skill)
+        self.assertIn("name: neuraldeep-transcriptions\n", skill)
         self.assertIn("/v1/audio/transcriptions", skill)
         self.assertIn("python3 scripts/client.py check transcribe", skill)
         relay = (root / "STARTER_RELAY.md").read_text(encoding="utf-8")
