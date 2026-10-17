@@ -82,6 +82,14 @@ one missing test. Each fix got a test first:
   `"whisper"` from `SYNCHRONOUS` fails the second, and removing the
   `submission()` block fails the third; the first test alone caught neither.
 
+## Resume keeps the state file
+
+Ported from the sibling suites (for example neuraldeep-search `6e8bee9`): both
+`test_resume_of_edited_resumable_state_is_blocked_not_crashed` tests, the shared one
+and the whisper one, now also require the state file to be byte-for-byte unchanged.
+With a mutation that overwrites the state before `resume` refuses, the old tests
+passed; with the check, all three subtests of each fail.
+
 ## Agent guide
 
 `AGENTS.md` gives Codex, Coddy and other coding agents the repo rules.
