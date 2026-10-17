@@ -97,10 +97,25 @@ passed; with the check, all three subtests of each fail.
 `test_fenced_examples_parse_without_execution` both failed before the file existed;
 the guide's Bash blocks pass `bash -n`.
 
+## Unknown polling status
+
+A live run on 2026-10-17 (four agents, real API) found that every OCR `run extract`
+ended `failed` with "returned an unknown status", although the job had finished:
+a later `GET /v1/ocr/jobs/{id}` said `completed`, and `resume` fetched the text.
+`poll()` treated any status outside its fixed in-progress list as a failure.
+
+Six tests were added first and failed: an unknown intermediate status now keeps
+polling, an unknown status until the deadline ends `timed_out` naming it (only a
+plain word is echoed), explicit failure statuses still stop at once, a response
+without a status is a resumable `poll_error`, and a mocked OCR run passes through
+an unknown status to `completed`. Mutations of the failure set, the status check
+and the sanitising each fail their own test. **59 tests passed**, both normally
+and with `LC_ALL=C PYTHONUTF8=0`, with no EncodingWarnings.
+
 ## Final results
 
 - `python3 -X warn_default_encoding -B -m unittest discover -s tests`:
-  **53 tests passed**, 0 EncodingWarnings.
+  **59 tests passed**, 0 EncodingWarnings.
 - The same suite under `LC_ALL=C PYTHONUTF8=0`: passed.
 - `python3 -B scripts/client.py --help`: passed, with no network call.
 - Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.
