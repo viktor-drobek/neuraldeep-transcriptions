@@ -1,0 +1,59 @@
+# Test-first verification
+
+No billed endpoint was called during development or verification, and no audio
+was transcribed. Publication is separate from these test results.
+
+## Starting point
+
+The repository started from the shared neuraldeep-* helper and suite at
+neuraldeep-speechcore `5cc6ae3`, which includes the UTF-8 fix from `6e036b0`.
+With `SERVICE = "whisper"`, the copied suite failed with `KeyError: 'whisper'`
+in four helper tests, and the documentation tests failed because `SKILL.md`,
+`README.md` and `STARTER_RELAY.md` did not exist yet.
+
+## Red/green sequence
+
+1. Added `tests/test_whisper.py` (7 tests) before changing the helper. All
+   failed: `whisper` was not a known service, and the guard did not block it.
+2. Added `SYNCHRONOUS = {"search", "whisper"}`, the `whisper` operation
+   `transcribe`, the public price ID `whisper-1`, and fail-closed blocks in
+   `guard()` and `submission()`. The shared state-path test now skips the
+   `resume --job-id` case for every synchronous service, not only Search.
+3. Added `test_resume_of_edited_resumable_state_is_blocked_not_crashed`. It
+   failed: a hand-edited whisper state marked `submitted` came back `failed`.
+   Search, in the same situation, skipped polling and raised `UnboundLocalError`
+   on the undefined result. `resume` now refuses synchronous services before
+   reading any state, and the post-submission branch checks `SYNCHRONOUS`.
+4. Wrote the documentation; the documentation and fenced-example tests passed.
+
+## Coverage added for whisper-1
+
+- Service, operation and price ID match the public price list (`whisper-1`).
+- The guard keeps the generic Starter, price and unit checks, then blocks with
+  the unverified-quota reason.
+- `check` makes exactly two read-only GETs: `/v1/limits` and public prices.
+- `run` is blocked before any HTTP call or audio file read, leaving a
+  `blocked` state and no artifact.
+- `resume`, with `--job-id` or a saved state in any status, makes no request.
+- SKILL.md and STARTER_RELAY.md name the real endpoint and the block.
+
+## Live read-only evidence (2026-10-17)
+
+- `GET /v1/models`: `whisper-1` has `type: transcription` and per-minute pricing.
+- Public prices: `whisper-1` has `billing: minute`, `premium: false`.
+- `GET /v1/limits`: only `chat` and `vector` buckets; nothing for audio.
+- `GET /v1/audio/quota` and `GET /v1/audio/transcriptions/quota`: HTTP 404.
+  `GET /v1/audio/diarize/quota` exists, but it belongs to diarization.
+- `python3 -B scripts/client.py check transcribe` exited 1 with
+  `whisper-1 remaining-quota endpoint unverified; transcription disabled`,
+  so the Starter, subscription, key-status and non-premium checks passed live.
+
+Only response structure was inspected. No account values are stored in this repository.
+
+## Final results
+
+- `python3 -X warn_default_encoding -B -m unittest discover -s tests`:
+  **46 tests passed**, 0 EncodingWarnings.
+- The same suite under `LC_ALL=C PYTHONUTF8=0`: passed.
+- `python3 -B scripts/client.py --help`: passed, with no network call.
+- Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.
