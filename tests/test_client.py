@@ -568,7 +568,6 @@ class SafetyTests(unittest.TestCase):
             self.assertTrue(content_type.startswith("multipart/form-data; boundary="))
             self.assertIn(b'name="image"; filename="upload.png"', body)
 
-
     def test_resume_of_edited_resumable_state_is_blocked_not_crashed(self):
         import io
         import sys
@@ -578,6 +577,7 @@ class SafetyTests(unittest.TestCase):
                 saved = client.state_template("task-fixture", "search")
                 saved.update(status=status, provider_job_id="job-fixture")
                 client.save_state(state, saved)
+                before = state.read_bytes()
                 argv = ["client.py", "resume", "--state", str(state), "--output", str(output)]
                 with patch.object(client, "SERVICE", "search"), patch.object(client, "request") as req, patch.object(sys, "argv", argv), patch("sys.stdout", new_callable=io.StringIO) as out:
                     self.assertEqual(client.main(), 1)
@@ -586,7 +586,7 @@ class SafetyTests(unittest.TestCase):
                 self.assertIn("no resumable job endpoint", result["errors"][0])
                 req.assert_not_called()
                 self.assertFalse(output.exists())
-
+                self.assertEqual(state.read_bytes(), before)
 
     def test_resume_of_malformed_state_is_blocked_not_crashed(self):
         import io
