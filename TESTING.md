@@ -90,10 +90,17 @@ and the whisper one, now also require the state file to be byte-for-byte unchang
 With a mutation that overwrites the state before `resume` refuses, the old tests
 passed; with the check, all three subtests of each fail.
 
+## Agent guide
+
+`AGENTS.md` gives Codex, Coddy and other coding agents the repo rules.
+`test_agents_guide_covers_codex_coddy_and_the_block` and the AGENTS.md entry in
+`test_fenced_examples_parse_without_execution` both failed before the file existed;
+the guide's Bash blocks pass `bash -n`.
+
 ## Final results
 
 - `python3 -X warn_default_encoding -B -m unittest discover -s tests`:
-  **52 tests passed**, 0 EncodingWarnings.
+  **53 tests passed**, 0 EncodingWarnings.
 - The same suite under `LC_ALL=C PYTHONUTF8=0`: passed.
 - `python3 -B scripts/client.py --help`: passed, with no network call.
 - Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.
