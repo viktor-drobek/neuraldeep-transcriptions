@@ -69,10 +69,23 @@ one missing test. Each fix got a test first:
   `check transcribe` reaches the network here. It must also describe the
   undocumented quota probes as probes. It failed before the guide was qualified.
 
+## Malformed state and shared whisper tests
+
+- Ported from neuraldeep-speechcore `a9a8073`: `resume` now blocks a state file
+  that is not a dict, has a non-string `status` or a non-list `errors`, instead
+  of crashing with `TypeError`. `test_resume_of_malformed_state_is_blocked_not_crashed`
+  was added first and failed in all five cases.
+- Three whisper tests now live in the shared `tests/test_client.py`, so the
+  siblings get the same coverage: `test_whisper_is_blocked_without_verified_quota`,
+  `test_whisper_is_synchronous_and_refuses_resume` and
+  `test_whisper_run_is_blocked_before_any_request`. On the OCR helper, removing
+  `"whisper"` from `SYNCHRONOUS` fails the second, and removing the
+  `submission()` block fails the third; the first test alone caught neither.
+
 ## Final results
 
 - `python3 -X warn_default_encoding -B -m unittest discover -s tests`:
-  **48 tests passed**, 0 EncodingWarnings.
+  **52 tests passed**, 0 EncodingWarnings.
 - The same suite under `LC_ALL=C PYTHONUTF8=0`: passed.
 - `python3 -B scripts/client.py --help`: passed, with no network call.
 - Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.

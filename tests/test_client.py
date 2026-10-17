@@ -71,6 +71,13 @@ class SafetyTests(unittest.TestCase):
         with self.assertRaises(client.Blocked):
             client.guard("speechcore", "upload", limits(), {"prices": [{"model": "speechcore", "premium": False}]}, {}, 1)
 
+    def test_whisper_is_blocked_without_verified_quota(self):
+        price = {"prices": [{"model": "whisper-1", "premium": False}]}
+        with self.assertRaises(client.Blocked) as raised:
+            client.guard("whisper", "transcribe", limits(), price, {}, 1)
+        self.assertIn("whisper-1 remaining-quota endpoint unverified", str(raised.exception))
+        self.assertEqual(client.price_id("whisper", "transcribe"), "whisper-1")
+
     def test_poll_failure_and_deadline_never_fetch(self):
         for status in ("failed", "cancelled", "unknown"):
             get = Mock(return_value={"status": status})
@@ -580,6 +587,56 @@ class SafetyTests(unittest.TestCase):
                 req.assert_not_called()
                 self.assertFalse(output.exists())
 
+
+    def test_resume_of_malformed_state_is_blocked_not_crashed(self):
+        import io
+        import sys
+        cases = ["[]", "null", '"x"', '{"service": "speechcore", "status": []}',
+                 '{"service": "speechcore", "status": "submitted", "provider_job_id": "job-fixture", "errors": "x"}']
+        for text in cases:
+            with self.subTest(state=text), tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_key", return_value="fixture"):
+                state, output = Path(tmp) / "state.json", Path(tmp) / "result.json"
+                state.write_text(text, encoding="utf-8")
+                argv = ["client.py", "resume", "--state", str(state), "--output", str(output)]
+                with patch.object(client, "SERVICE", "speechcore"), patch.object(client, "request") as req, patch.object(sys, "argv", argv), patch("sys.stdout", new_callable=io.StringIO) as out:
+                    self.assertEqual(client.main(), 1)
+                result = json.loads(out.getvalue())
+                self.assertEqual(result["status"], "blocked")
+                self.assertIn("not resumable", result["errors"][0])
+                req.assert_not_called()
+                self.assertFalse(output.exists())
+                self.assertEqual(state.read_text(encoding="utf-8"), text)
+
+    def test_whisper_is_synchronous_and_refuses_resume(self):
+        import io
+        import sys
+        self.assertIn("whisper", client.SYNCHRONOUS)
+        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "SERVICE", "whisper"), patch.object(client, "resolve_key", return_value="fixture"):
+            state = Path(tmp) / "state.json"
+            argv = ["client.py", "resume", "--job-id", "job-fixture", "--state", str(state), "--output", str(Path(tmp) / "result.json")]
+            with patch.object(client, "request") as req, patch.object(sys, "argv", argv), patch("sys.stdout", new_callable=io.StringIO) as out:
+                self.assertEqual(client.main(), 1)
+            result = json.loads(out.getvalue())
+            self.assertEqual(result["status"], "blocked")
+            self.assertIn("Synchronous whisper has no resumable job endpoint", result["errors"][0])
+            self.assertFalse(state.exists())
+            req.assert_not_called()
+
+    def test_whisper_run_is_blocked_before_any_request(self):
+        import io
+        import sys
+        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "SERVICE", "whisper"), patch.object(client, "resolve_key", return_value="fixture"):
+            output = Path(tmp) / "result.json"
+            argv = ["client.py", "run", "transcribe", "--file", str(Path(tmp) / "missing.wav"),
+                    "--state", str(Path(tmp) / "state.json"), "--output", str(output)]
+            with patch.object(client, "request") as req, patch.object(client, "multipart") as body, patch.object(sys, "argv", argv), patch("sys.stdout", new_callable=io.StringIO) as out:
+                self.assertEqual(client.main(), 1)
+            result = json.loads(out.getvalue())
+            self.assertEqual(result["status"], "blocked")
+            self.assertIn("whisper-1 transcription disabled until remaining quota is verified", result["errors"][0])
+            self.assertFalse(output.exists())
+            req.assert_not_called()
+            body.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()
