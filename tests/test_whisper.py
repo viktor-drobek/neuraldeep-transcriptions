@@ -120,6 +120,16 @@ class WhisperTests(unittest.TestCase):
         self.assertIn("python3 scripts/client.py check transcribe", skill)
         relay = (root / "STARTER_RELAY.md").read_text(encoding="utf-8")
         self.assertRegex(relay, r"\| Whisper \| \*\*Unverified: transcription blocked\.\*\*")
+        self.assertIn("In this repository only `check transcribe` reaches the network", relay)
+        self.assertNotIn("used only documented read-only GETs", relay)
+
+    def test_skill_does_not_advertise_what_the_helper_refuses(self):
+        skill = (Path(__file__).parents[1] / "SKILL.md").read_text(encoding="utf-8")
+        for claim in ("drop-in", "Short audio transcribed", "short audio transcription",
+                      "NeuralDeep GPUs", "before any network call or file read"):
+            self.assertNotIn(claim, skill)
+        # run still resolves the key and leaves a blocked state file behind.
+        self.assertIn("writes a `blocked` state file", skill)
 
 
 if __name__ == "__main__":

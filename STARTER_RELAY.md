@@ -2,6 +2,11 @@
 
 ## Before spending
 
+In this repository only `check transcribe` reaches the network: whisper-1 `run`
+is refused before preflight, and `resume` is refused for synchronous services.
+The rest of this guide describes the shared helper for services where
+submission is enabled (Search, OCR, Images).
+
 The helper is deliberately restricted to Starter subscription billing. Every
 `run` re-reads `GET /v1/limits`, the public wallet prices, and the service quota.
 All of these must pass:
@@ -28,7 +33,8 @@ aggressively; a read-only check immediately before a submission is sufficient.
 
 Reference: <https://neuraldeep.ru/llms-full.txt>. Public operation classification:
 <https://neuraldeep.ru/api/public/wallet-prices>. Schema verification on
-2026-09-12 (whisper-1 rows: 2026-10-17) used only documented read-only GETs.
+2026-09-12 used documented read-only GETs. The whisper-1 row (2026-10-17) also
+used read-only probes of candidate quota endpoints, listed in TESTING.md.
 No service job was submitted and no audio was transcribed.
 No credentials, account snapshots, or live remaining values are test fixtures.
 
@@ -38,7 +44,7 @@ No credentials, account snapshots, or live remaining values are test fixtures.
 | OCR | `/v1/ocr/balance`: `tier`, `daily_pages.remaining`, `monthly_pages.remaining` | `ocr:extract` |
 | Images | `/v1/images/quota`: `tier`, `img.day.remaining`, `img.month.remaining` | `image:generate`, `image:upscale`, `image:background_remove`, `image:enhance`, `image:avatar` |
 | SpeechCore | **Unverified: uploads blocked.** The reference does not identify a live remaining-quota endpoint. | `speechcore` (non-premium alone is insufficient) |
-| Whisper | **Unverified: transcription blocked.** The reference names no remaining-quota endpoint for `/v1/audio/transcriptions`; `GET /v1/audio/quota` returned 404 on 2026-10-17. `/v1/limits` has only chat and vector buckets. | `whisper-1` (`billing: minute`; non-premium alone is insufficient) |
+| Whisper | **Unverified: transcription blocked.** The reference names no remaining-quota endpoint for `/v1/audio/transcriptions`; `GET /v1/audio/quota` and `GET /v1/audio/transcriptions/quota` returned 404 on 2026-10-17. `/v1/limits` has only chat and vector buckets. | `whisper-1` (`billing: minute`; non-premium alone is insufficient) |
 
 OCR requires a locally verified input page count through `--pages`. `fast`
 charges one quota page per sheet; `pro` charges two. The helper does not parse
@@ -59,7 +65,9 @@ a locally verified audio duration, rounded up to whole minutes, as the quota cos
 
 ## Run and recover
 
-Use the worked commands in [SKILL.md](SKILL.md), from this directory.
+For whisper-1 none of this recovery applies: `run` and `resume` are refused, and
+only the read-only check below is available. Use the worked commands in
+[SKILL.md](SKILL.md), from this directory.
 `check OPERATION` performs only read-only preflight. `run OPERATION` performs
 preflight, one submission, bounded polling where applicable, and artifact save.
 `--payload` reads JSON for Search or image generation; `--file` reads a local
@@ -105,7 +113,7 @@ Relay installation or configuration changes:
   for synchronous Search and whisper-1 and for unacknowledged submissions. Never fabricate one.
 - `status`: `blocked`, `reconciliation_required`, `submitted`, `timed_out`,
   `poll_error`, `failed`, or `completed`. A read-only check reports `ready`, not
-  a completed provider job.
+  a completed provider job; whisper-1 never reports `ready`, because its check always ends `blocked`.
 - `artifacts`: references with `sha256` and `provenance` (endpoint, retrieval time,
   `trust: untrusted_data`); no transcript or extracted content in the envelope.
 - `quota_observed`: timestamp, endpoint, relevant service buckets, required units;

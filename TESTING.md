@@ -50,10 +50,29 @@ in four helper tests, and the documentation tests failed because `SKILL.md`,
 
 Only response structure was inspected. No account values are stored in this repository.
 
+## Cross-review follow-up
+
+A cross-review by three models (Claude Opus, gpt-6.1-sol, gemma-4-31b) found
+no defect in the block itself, but several doc claims beyond the helper, and
+one missing test. Each fix got a test first:
+
+- The Search half of the resume fix had no test: with the guard narrowed to
+  `SERVICE == "whisper"`, all 46 tests still passed while a mocked Search
+  resume crashed. `test_resume_of_edited_resumable_state_is_blocked_not_crashed`
+  from the shared suite (neuraldeep-speechcore `a16c7a4`) is now in
+  `tests/test_client.py`; it fails on that narrowed guard and passes on the real one.
+- `test_skill_does_not_advertise_what_the_helper_refuses` failed first.
+  SKILL.md advertised transcription and a drop-in SDK replacement, claimed `run`
+  read no files (it resolves the key and writes a `blocked` state file), and said
+  "NeuralDeep GPUs", which the provider does not state for whisper-1.
+- The documentation test now also requires STARTER_RELAY.md to say that only
+  `check transcribe` reaches the network here. It must also describe the
+  undocumented quota probes as probes. It failed before the guide was qualified.
+
 ## Final results
 
 - `python3 -X warn_default_encoding -B -m unittest discover -s tests`:
-  **46 tests passed**, 0 EncodingWarnings.
+  **48 tests passed**, 0 EncodingWarnings.
 - The same suite under `LC_ALL=C PYTHONUTF8=0`: passed.
 - `python3 -B scripts/client.py --help`: passed, with no network call.
 - Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.

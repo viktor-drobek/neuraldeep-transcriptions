@@ -1,7 +1,7 @@
 # 🗣️ neuraldeep-whisper-1
 
-Speech-to-text through the NeuralDeep Hub `whisper-1` model
-(OpenAI-compatible `POST /v1/audio/transcriptions`).
+Starter preflight and API reference for the NeuralDeep Hub `whisper-1`
+speech-to-text model (OpenAI-compatible `POST /v1/audio/transcriptions`).
 Transcription is blocked until a remaining-quota endpoint for whisper-1 is
 verified; the helper runs only a read-only Starter preflight today.
 
