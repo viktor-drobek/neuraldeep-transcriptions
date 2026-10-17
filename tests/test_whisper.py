@@ -18,7 +18,7 @@ def limits():
 
 
 def prices(premium=False):
-    return {"prices": [{"model": "whisper-1", "billing": "minute", "rub_per_min": 1.0, "premium": premium}]}
+    return {"prices": [{"model": "gigaam-v3", "billing": "minute", "rub_per_min": 0.25, "premium": premium}]}
 
 
 def run_cli(argv):
@@ -31,13 +31,14 @@ class WhisperTests(unittest.TestCase):
     def test_repo_service_and_public_price_id(self):
         self.assertEqual(client.SERVICE, "whisper")
         self.assertEqual(client.OPERATIONS["whisper"], ("transcribe",))
-        self.assertEqual(client.price_id("whisper", "transcribe"), "whisper-1")
+        self.assertEqual(client.price_id("whisper", "transcribe"), "gigaam-v3")
+        self.assertEqual(client.TRANSCRIPTION_MODELS, ("gigaam-v3", "whisper-1", "whisper-podlodka-turbo"))
         self.assertIn("whisper", client.SYNCHRONOUS)
 
     def test_guard_blocks_whisper_without_verified_quota(self):
         with self.assertRaises(client.Blocked) as raised:
             client.guard("whisper", "transcribe", limits(), prices(), {}, 1)
-        self.assertIn("whisper-1 remaining-quota endpoint unverified", str(raised.exception))
+        self.assertIn("gigaam-v3 remaining-quota endpoint unverified", str(raised.exception))
         # The generic Starter, price and unit checks still run first.
         for lim, price, units in ((dict(limits(), tier="pro"), prices(), 1),
                                   (limits(), prices(premium=True), 1),
@@ -121,7 +122,7 @@ class WhisperTests(unittest.TestCase):
         self.assertIn("/v1/audio/transcriptions", skill)
         self.assertIn("python3 scripts/client.py check transcribe", skill)
         relay = (root / "STARTER_RELAY.md").read_text(encoding="utf-8")
-        self.assertRegex(relay, r"\| Whisper \| \*\*Unverified: transcription blocked\.\*\*")
+        self.assertRegex(relay, r"\| Transcriptions \| \*\*Unverified: transcription blocked\.\*\*")
         self.assertIn("In this repository only `check transcribe` reaches the network", relay)
         self.assertNotIn("used only documented read-only GETs", relay)
 
@@ -151,6 +152,18 @@ class WhisperTests(unittest.TestCase):
                        "POST /v1/audio/transcriptions", "by hand", "supervisor", "undocumented"):
             self.assertIn(needle, rules)
         self.assertIn("never bypass", skill.split("---", 2)[1])
+
+    def test_docs_cover_the_three_transcription_models(self):
+        root = Path(__file__).parents[1]
+        skill = (root / "SKILL.md").read_text(encoding="utf-8")
+        for needle in ("gigaam-v3", "whisper-1", "whisper-podlodka-turbo", "--model",
+                       "python3 scripts/client.py check transcribe --model whisper-1",
+                       "default `gigaam-v3`", "0.25"):
+            self.assertIn(needle, skill)
+        relay = (root / "STARTER_RELAY.md").read_text(encoding="utf-8")
+        self.assertIn("`gigaam-v3`, `whisper-1`, `whisper-podlodka-turbo`", relay)
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        self.assertIn("gigaam-v3", readme)
 
 
 if __name__ == "__main__":

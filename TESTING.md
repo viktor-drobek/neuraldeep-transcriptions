@@ -133,10 +133,24 @@ are unchanged. Commit references above keep the old repository name.
 `test_documentation_names_the_real_endpoint_and_block` checked the old skill name
 and failed first after it was updated.
 
+## Transcription models
+
+The shared helper now knows three speech-to-text models for the `whisper`
+service: `gigaam-v3` (the default), `whisper-1` and `whisper-podlodka-turbo`,
+chosen with `--model`. Each has its own public price ID; the guard checks the
+chosen model's row and its block names the model. `--model` is refused for the
+other services and for unknown models (exit 2). Five shared tests were added
+first; four failed and the fifth guards the new flag. Moving the default from
+`whisper-1` to `gigaam-v3` updated the tests pinned to it. Mutations of the
+default, the model check and the per-model price ID each fail their own test.
+A live read-only `check` (2026-10-17) blocked each model at the quota step, so
+all three price rows are present and non-premium. **66 tests passed**, both
+normally and with `LC_ALL=C PYTHONUTF8=0`.
+
 ## Final results
 
 - `python3 -X warn_default_encoding -B -m unittest discover -s tests`:
-  **60 tests passed**, 0 EncodingWarnings.
+  **66 tests passed**, 0 EncodingWarnings.
 - The same suite under `LC_ALL=C PYTHONUTF8=0`: passed.
 - `python3 -B scripts/client.py --help`: passed, with no network call.
 - Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.
