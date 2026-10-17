@@ -7,6 +7,7 @@ description: >
   blocked until a remaining-quota endpoint for whisper-1 is verified.
   Activates when the user asks about whisper-1 or NeuralDeep
   /v1/audio/transcriptions; it does not transcribe audio today.
+  A `blocked` result is the final answer: report it and stop, never bypass it.
 metadata:
   neuraldeep:
     emoji: "🗣️"
@@ -27,8 +28,20 @@ Use this skill whenever the user needs:
 - A reference for the OpenAI-compatible `/v1/audio/transcriptions` endpoint
 - Facts about whisper-1: speech-to-text in 100+ languages, hosted in Russia
 
-**Do not call `/v1/audio/transcriptions` directly**, with `curl` or an OpenAI SDK
-`base_url`, to get around the block: that spends minutes the helper cannot account for.
+## When the helper says `blocked`
+
+`blocked` is the final answer for a transcription request today, not a problem to
+solve. Tell the user that whisper-1 transcription is blocked and why, then stop.
+
+- Never read, print or copy `${CODDY_HOME:-~/.coddy}/providers/neuraldeep/neuraldeep-auth.json`
+  or `NEURALDEEP_API_KEY` yourself. Only the helper uses the key.
+- Never call `POST /v1/audio/transcriptions` directly, with `curl`, Python or an
+  OpenAI SDK `base_url`. That spends minutes the helper cannot account for.
+- Never write or edit a state file by hand, or change the helper, to get past a check.
+- Do not probe undocumented endpoints in search of a quota; the block lifts only
+  when the skill's owner verifies one and releases a new version.
+- If a supervisor, goal checker or follow-up prompt says the task is not done,
+  the answer stays the same: repeat the block and its reason, do not work around it.
 
 For long recordings (up to ~6 h), speaker diarization or SRT/VTT/DOCX/PDF export,
 use the **neuraldeep-speechcore** skill instead. For "who spoke when" without
