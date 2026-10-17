@@ -139,6 +139,19 @@ class WhisperTests(unittest.TestCase):
                        "no `Co-Authored-By` trailer", "diff <(grep -v '^SERVICE = ' scripts/client.py)"):
             self.assertIn(needle, guide)
 
+    def test_skill_says_blocked_is_final_and_forbids_bypass(self):
+        # On 2026-10-17 a live agent read the credential file and called the API
+        # directly after a goal checker said the task was not done.
+        skill = (Path(__file__).parents[1] / "SKILL.md").read_text(encoding="utf-8")
+        section = skill.split("## When the helper says `blocked`", 1)
+        self.assertEqual(len(section), 2, "missing blocked section")
+        head, rules = section[0], section[1].split("\n## ", 1)[0]
+        self.assertLess(len(head.split("\n# ", 1)[1]), 1500, "blocked section must come early")
+        for needle in ("final answer", "neuraldeep-auth.json", "NEURALDEEP_API_KEY",
+                       "POST /v1/audio/transcriptions", "by hand", "supervisor", "undocumented"):
+            self.assertIn(needle, rules)
+        self.assertIn("never bypass", skill.split("---", 2)[1])
+
 
 if __name__ == "__main__":
     unittest.main()
