@@ -1,12 +1,14 @@
 # 🗣️ neuraldeep-transcriptions
 
-Starter preflight and API reference for the NeuralDeep Hub `whisper-1`
-speech-to-text model (OpenAI-compatible `POST /v1/audio/transcriptions`).
-Transcription is blocked until a remaining-quota endpoint for whisper-1 is
-verified; the helper runs only a read-only Starter preflight today.
+Starter preflight and API reference for the NeuralDeep Hub speech-to-text models
+`gigaam-v3` (default), `whisper-1` and `whisper-podlodka-turbo`
+(OpenAI-compatible `POST /v1/audio/transcriptions`). Transcription is blocked
+until a remaining-quota endpoint is verified; the helper runs only a read-only
+Starter preflight today.
 
 A [Coddy](https://coddy.dev) / AI-agent skill for the **NeuralDeep Hub API**.
-Model page: <https://hub.neuraldeep.ru/models/whisper-1>.
+Model pages: <https://hub.neuraldeep.ru/models/gigaam-v3>, <https://hub.neuraldeep.ru/models/whisper-1>,
+<https://hub.neuraldeep.ru/models/whisper-podlodka-turbo>.
 
 ## Author
 

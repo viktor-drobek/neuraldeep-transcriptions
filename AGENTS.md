@@ -13,10 +13,11 @@ repository**. To *use* the skill, read [SKILL.md](SKILL.md) and [STARTER_RELAY.m
   this repo) and documentation checks (`test_examples.py`).
 - `TESTING.md`: the record of test-first changes and the current test count.
 
-## whisper-1 stays blocked
+## Transcription stays blocked
 
-whisper-1 (`POST /v1/audio/transcriptions`) is billed per minute of audio, and no remaining-quota
-endpoint for it is verified. The repository owner decided to keep it fail-closed, like SpeechCore
+Transcription (`POST /v1/audio/transcriptions`; models `gigaam-v3`, the default, `whisper-1` and
+`whisper-podlodka-turbo`) is billed per minute of audio, and no remaining-quota endpoint for it is
+verified. The repository owner decided to keep it fail-closed, like SpeechCore
 uploads:
 
 - `check transcribe` is the only command that reaches the network. It always ends `blocked`.
