@@ -131,6 +131,12 @@ class WhisperTests(unittest.TestCase):
         # run still resolves the key and leaves a blocked state file behind.
         self.assertIn("writes a `blocked` state file", skill)
 
+    def test_agents_guide_covers_codex_coddy_and_the_block(self):
+        guide = (Path(__file__).parents[1] / "AGENTS.md").read_text(encoding="utf-8")
+        for needle in ("## Codex", "## Coddy", "/v1/audio/transcriptions", "do not push to `main`",
+                       "no `Co-Authored-By` trailer", "diff <(grep -v '^SERVICE = ' scripts/client.py)"):
+            self.assertIn(needle, guide)
+
 
 if __name__ == "__main__":
     unittest.main()
