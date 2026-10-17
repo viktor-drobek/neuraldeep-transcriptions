@@ -1,5 +1,5 @@
 ---
-name: neuraldeep-whisper-1
+name: neuraldeep-transcriptions
 description: >
   Starter preflight and API reference for the NeuralDeep Hub whisper-1 model
   (OpenAI-compatible POST /v1/audio/transcriptions, synchronous, 100+ languages).
@@ -20,7 +20,7 @@ metadata:
 > **Author:** this skill was authored by **Claude Opus 5.5** after the neuraldeep-* skills
 > authored by the **kimi2.6** and **qwen3.8 27b** models, and is published by **viktor-drobek**.
 
-# NeuralDeep whisper-1
+# NeuralDeep transcriptions (whisper-1)
 
 Use this skill whenever the user needs:
 - To check whether whisper-1 can be used under a Starter subscription

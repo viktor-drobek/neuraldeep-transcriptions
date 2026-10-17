@@ -1,4 +1,4 @@
-# 🗣️ neuraldeep-whisper-1
+# 🗣️ neuraldeep-transcriptions
 
 Starter preflight and API reference for the NeuralDeep Hub `whisper-1`
 speech-to-text model (OpenAI-compatible `POST /v1/audio/transcriptions`).
@@ -17,10 +17,10 @@ authored by the **kimi2.6** and **qwen3.8 27b** models, and is published by **vi
 
 ```bash
 # via the skillsbd catalog
-npx skillsbd add viktor-drobek/neuraldeep-whisper-1/neuraldeep-whisper-1
+npx skillsbd add viktor-drobek/neuraldeep-transcriptions/neuraldeep-transcriptions
 
 # or directly from this repo
-npx skillsbd add https://github.com/viktor-drobek/neuraldeep-whisper-1 --skill neuraldeep-whisper-1
+npx skillsbd add https://github.com/viktor-drobek/neuraldeep-transcriptions --skill neuraldeep-transcriptions
 ```
 
 ## Requirements
