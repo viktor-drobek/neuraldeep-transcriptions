@@ -165,10 +165,23 @@ file and `.codex/hooks/` are identical across the neuraldeep-* repositories.
 **76 tests passed**, both normally and with `LC_ALL=C PYTHONUTF8=0`, with no
 `EncodingWarning` under `-X warn_default_encoding`.
 
+## Release metadata (v1.0.0)
+
+Added `tests/test_release.py` (3 tests, identical across the neuraldeep-*
+repositories) first. Two failed: `SKILL.md` had no `metadata.version` and
+`AGENTS.md` had no release steps; the tag check is skipped outside a tag build.
+`metadata.version: 1.0.0` is now in the `SKILL.md` frontmatter, the key Coddy
+reads (`coddy skills list` showed `1.0.0` for a copy under a scratch
+`CODDY_HOME`), and `AGENTS.md` has a Releases section. With
+`GITHUB_REF_TYPE=tag`, `GITHUB_REF_NAME=v1.0.0` passed and `v1.0.1` failed.
+**79 tests passed** (1 skipped outside a tag build), both normally and with
+`LC_ALL=C PYTHONUTF8=0`, with no `EncodingWarning` under
+`-X warn_default_encoding`.
+
 ## Final results
 
 - `python3 -X warn_default_encoding -B -m unittest discover -s tests`:
-  **76 tests passed**, 0 EncodingWarnings.
+  **79 tests passed** (1 skipped outside a tag build), 0 EncodingWarnings.
 - The same suite under `LC_ALL=C PYTHONUTF8=0`: passed.
 - `python3 -B scripts/client.py --help`: passed, with no network call.
 - Fenced Python examples parsed with `ast.parse`; Bash examples passed `bash -n`.
