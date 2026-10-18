@@ -50,7 +50,9 @@ solve. Tell the user that transcription is blocked and why, then stop.
 
 For long recordings (up to ~6 h), speaker diarization or SRT/VTT/DOCX/PDF export,
 use the **neuraldeep-speechcore** skill instead. For "who spoke when" without
-text, NeuralDeep has a separate `/v1/audio/diarize` endpoint.
+text, use the **neuraldeep-diarization** skill (`/v1/audio/diarize`). Its offline
+`merge` joins a diarization with a timed transcript from this endpoint into a
+transcript split by speaker, once transcription is unblocked.
 
 ## Models
 

@@ -32,7 +32,7 @@ uploads:
 ## The shared helper
 
 `scripts/client.py` is shared by every neuraldeep-* repo (speechcore, search, ocr, images,
-transcriptions) and must stay identical across them except for the `SERVICE = "..."` line. Port a
+transcriptions, diarization) and must stay identical across them except for the `SERVICE = "..."` line. Port a
 change to every sibling repo, each through its own PR. Check a port against a sibling checkout:
 
 ```bash
