@@ -2,7 +2,7 @@
 
 ## Before spending
 
-In this repository only `check transcribe` reaches the network: whisper-1 `run`
+In this repository only `check transcribe` reaches the network: transcription `run`
 is refused before preflight, and `resume` is refused for synchronous services.
 The rest of this guide describes the shared helper for services where
 submission is enabled (Search, OCR, Images).
@@ -33,7 +33,7 @@ aggressively; a read-only check immediately before a submission is sufficient.
 
 Reference: <https://neuraldeep.ru/llms-full.txt>. Public operation classification:
 <https://neuraldeep.ru/api/public/wallet-prices>. Schema verification on
-2026-09-12 used documented read-only GETs. The whisper-1 row (2026-10-17) also
+2026-09-12 used documented read-only GETs. The transcription row (2026-10-17) also
 used read-only probes of candidate quota endpoints, listed in TESTING.md.
 No service job was submitted and no audio was transcribed.
 No credentials, account snapshots, or live remaining values are test fixtures.
@@ -44,7 +44,7 @@ No credentials, account snapshots, or live remaining values are test fixtures.
 | OCR | `/v1/ocr/balance`: `tier`, `daily_pages.remaining`, `monthly_pages.remaining` | `ocr:extract` |
 | Images | `/v1/images/quota`: `tier`, `img.day.remaining`, `img.month.remaining` | `image:generate`, `image:upscale`, `image:background_remove`, `image:enhance`, `image:avatar` |
 | SpeechCore | **Unverified: uploads blocked.** The reference does not identify a live remaining-quota endpoint. | `speechcore` (non-premium alone is insufficient) |
-| Whisper | **Unverified: transcription blocked.** The reference names no remaining-quota endpoint for `/v1/audio/transcriptions`; `GET /v1/audio/quota` and `GET /v1/audio/transcriptions/quota` returned 404 on 2026-10-17. `/v1/limits` has only chat and vector buckets. | `whisper-1` (`billing: minute`; non-premium alone is insufficient) |
+| Transcriptions | **Unverified: transcription blocked.** The reference names no remaining-quota endpoint for `/v1/audio/transcriptions`; `GET /v1/audio/quota` and `GET /v1/audio/transcriptions/quota` returned 404 on 2026-10-17. `/v1/limits` has only chat and vector buckets. | `gigaam-v3`, `whisper-1`, `whisper-podlodka-turbo` (each `billing: minute`; the helper checks the chosen model's row; non-premium alone is insufficient) |
 
 OCR requires a locally verified input page count through `--pages`. `fast`
 charges one quota page per sheet; `pro` charges two. The helper does not parse
@@ -58,14 +58,14 @@ All operations use `/v1/images/tasks/{uid}` until `finished`, then the binary
 `{task_id}` uses `completed`, but this helper only resumes existing SpeechCore
 jobs. Advertised daily ceilings are not a live budget and cannot unblock uploads.
 
-whisper-1 is synchronous like Search: the transcript is the POST response and
+Transcription is synchronous like Search: the transcript is the POST response and
 there is no provider job ID, so `resume` is refused for it. It is billed per
 minute of audio. Unblocking it needs a verified remaining-minutes bucket **and**
 a locally verified audio duration, rounded up to whole minutes, as the quota cost.
 
 ## Run and recover
 
-For whisper-1 none of this recovery applies: `run` and `resume` are refused, and
+For transcription none of this recovery applies: `run` and `resume` are refused, and
 only the read-only check below is available. Use the worked commands in
 [SKILL.md](SKILL.md), from this directory.
 `check OPERATION` performs only read-only preflight. `run OPERATION` performs
@@ -92,7 +92,7 @@ status is a `poll_error`, and a completion observed after the deadline also stop
 
 An ambiguous POST timeout, HTTP failure, malformed response, or interrupted
 submission is `reconciliation_required`, **not permission to resubmit**. Search
-and whisper-1 are synchronous and have no documented provider job ID to resume.
+and transcription are synchronous and have no documented provider job ID to resume.
 Reconcile using provider records or support; never invent an idempotency
 mechanism or blindly retry a billed call. A failed job also needs an explicit new decision before
 any new submission. No POST retries or redirects are performed by this helper.
@@ -102,7 +102,7 @@ its exit code and envelope status. A pre-existing output file is not proof that
 the current run succeeded; only a completed envelope's artifact hash identifies
 the result of this run. OCR artifacts contain the API's markdown-format JSON;
 image artifacts require PNG MIME/signature; SpeechCore artifacts contain validated
-transcript JSON. whisper-1 produces no artifacts while transcription is blocked. Invalid MIME, empty bodies and error-shaped JSON produce
+transcript JSON. Transcription produces no artifacts while it is blocked. Invalid MIME, empty bodies and error-shaped JSON produce
 `poll_error` with the same provider job ID, not a completed artifact. These checks
 do not replace full image decoding, visual review, or factual transcript review.
 
@@ -113,10 +113,10 @@ Relay installation or configuration changes:
 
 - `task_id`: caller-owned task identifier (`--task-id`).
 - `service`: service name; `provider_job_id`: durable async provider ID, or null
-  for synchronous Search and whisper-1 and for unacknowledged submissions. Never fabricate one.
+  for synchronous Search and transcription and for unacknowledged submissions. Never fabricate one.
 - `status`: `blocked`, `reconciliation_required`, `submitted`, `timed_out`,
   `poll_error`, `failed`, or `completed`. A read-only check reports `ready`, not
-  a completed provider job; whisper-1 never reports `ready`, because its check always ends `blocked`.
+  a completed provider job; transcription never reports `ready`, because its check always ends `blocked`.
 - `artifacts`: references with `sha256` and `provenance` (endpoint, retrieval time,
   `trust: untrusted_data`); no transcript or extracted content in the envelope.
 - `quota_observed`: timestamp, endpoint, relevant service buckets, required units;

@@ -37,4 +37,4 @@ failure with a special case in a caller.
 
 ## This service
 
-`whisper-1` transcription stays blocked until a remaining-minutes endpoint is verified. `check transcribe` is the only network-capable command, `run` sends nothing, and `resume` refuses the synchronous service. A `blocked` result is final: never add an opt-in, a direct API call, a fallback, or an undocumented quota probe.
+Transcription with every model (`gigaam-v3`, the default, `whisper-1` and `whisper-podlodka-turbo`) stays blocked until a remaining-quota endpoint is verified. `check transcribe [--model MODEL]` is the only network-capable command, `run` sends nothing, and `resume` refuses the synchronous service. A `blocked` result is final: never add an opt-in, a direct API call, a fallback, or an undocumented quota probe.
