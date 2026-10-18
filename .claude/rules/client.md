@@ -1,0 +1,40 @@
+---
+description: Shared helper layering and fail-closed invariants
+paths:
+  - "scripts/**/*.py"
+  - "tests/test_client.py"
+  - "tests/test_whisper.py"
+---
+
+# Shared helper
+
+`scripts/client.py` is the only code. It is shared by every neuraldeep-* repository and must stay
+identical across them except for the `SERVICE = "..."` line. Port a change to each sibling through
+its own PR and compare the helpers with the `diff` command in `AGENTS.md`.
+
+## Layered implementation order
+
+After the failing test, implement from lower dependencies upward:
+
+1. Constants, parsing and validation helpers.
+2. Credential resolution and approved-origin HTTP transport.
+3. Fail-closed guard checks and quota observations.
+4. Durable state and artifact handling.
+5. Provider job URLs, submission, polling and result validation.
+6. `execute()` and CLI wiring.
+
+Lower layers must not depend on CLI parsing or provider job state. Never bypass a lower-layer
+failure with a special case in a caller.
+
+## Invariants
+
+- Keep the guard fail-closed: unknown schemas, premium operations, unverified quotas and
+  ambiguous submissions block.
+- Never add POST retries, follow redirects, or a fallback that resubmits.
+- Errors stay sanitized (no keys, no provider response bodies), and every failure still prints
+  the JSON envelope.
+- Pass `encoding="utf-8"` to every text read and write, in code and tests.
+
+## This service
+
+Transcription with every model (`gigaam-v3`, the default, `whisper-1` and `whisper-podlodka-turbo`) stays blocked until a remaining-quota endpoint is verified. `check transcribe [--model MODEL]` is the only network-capable command, `run` sends nothing, and `resume` refuses the synchronous service. A `blocked` result is final: never add an opt-in, a direct API call, a fallback, or an undocumented quota probe.
