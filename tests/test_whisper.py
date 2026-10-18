@@ -49,7 +49,7 @@ class WhisperTests(unittest.TestCase):
             self.assertNotIn("unverified", str(raised.exception))
 
     def test_check_reads_only_limits_and_prices(self):
-        with patch.object(client, "resolve_key", return_value="fixture"), \
+        with patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
                 patch.object(client, "request", side_effect=[limits(), prices()]) as req:
             code, result = run_cli(["check"])
         self.assertEqual(code, 1)
@@ -60,7 +60,7 @@ class WhisperTests(unittest.TestCase):
                          [("GET", client.HUB + "/limits"), ("GET", client.PRICES)])
 
     def test_run_is_blocked_before_any_request_or_file_read(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_key", return_value="fixture"), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
                 patch.object(client, "request") as req, patch.object(client, "multipart") as body:
             state, output = Path(tmp) / "state.json", Path(tmp) / "transcript.json"
             code, result = run_cli(["run", "transcribe", "--file", str(Path(tmp) / "missing.wav"),
@@ -77,7 +77,7 @@ class WhisperTests(unittest.TestCase):
         body.assert_not_called()
 
     def test_resume_job_id_is_refused_for_synchronous_transcription(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_key", return_value="fixture"), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
                 patch.object(client, "request") as req:
             state = Path(tmp) / "state.json"
             code, result = run_cli(["resume", "--job-id", "job-fixture", "--state", str(state),
@@ -89,7 +89,7 @@ class WhisperTests(unittest.TestCase):
         req.assert_not_called()
 
     def test_resume_of_blocked_state_makes_no_request(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_key", return_value="fixture"), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
                 patch.object(client, "request") as req:
             state = Path(tmp) / "state.json"
             client.save_state(state, client.state_template("task-fixture", "whisper"))
@@ -101,7 +101,7 @@ class WhisperTests(unittest.TestCase):
     def test_resume_of_edited_resumable_state_is_blocked_not_crashed(self):
         for status in ("submitted", "timed_out", "poll_error"):
             with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp, \
-                    patch.object(client, "resolve_key", return_value="fixture"), patch.object(client, "request") as req:
+                    patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), patch.object(client, "request") as req:
                 state = Path(tmp) / "state.json"
                 saved = client.state_template("task-fixture", "whisper")
                 saved.update(status=status, provider_job_id="job-fixture")
@@ -148,7 +148,7 @@ class WhisperTests(unittest.TestCase):
         self.assertEqual(len(section), 2, "missing blocked section")
         head, rules = section[0], section[1].split("\n## ", 1)[0]
         self.assertLess(len(head.split("\n# ", 1)[1]), 1500, "blocked section must come early")
-        for needle in ("final answer", "neuraldeep-auth.json", "NEURALDEEP_API_KEY",
+        for needle in ("final answer", "${CODDY_HOME:-~/.coddy}/.env", "NEURALDEEP_TRANSCRIPTIONS_API_KEY", "NEURALDEEP_API_KEY",
                        "POST /v1/audio/transcriptions", "by hand", "supervisor", "undocumented"):
             self.assertIn(needle, rules)
         self.assertIn("never bypass", skill.split("---", 2)[1])
