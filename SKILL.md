@@ -10,7 +10,7 @@ description: >
   NeuralDeep /v1/audio/transcriptions.
   A `blocked` result is the final answer: report it and stop, never bypass it.
 metadata:
-  version: 1.0.0
+  version: 2.0.0
   neuraldeep:
     emoji: "🗣️"
     base_url: "https://api.neuraldeep.ru/v1"
