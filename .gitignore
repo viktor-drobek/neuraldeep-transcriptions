@@ -7,3 +7,4 @@ result.bin
 # Private runtime files used by the SKILL.md examples
 speech-state.json
 transcript.json
+transcribe-state.json

@@ -13,19 +13,20 @@ repository**. To *use* the skill, read [SKILL.md](SKILL.md) and [STARTER_RELAY.m
   this repo) and documentation checks (`test_examples.py`).
 - `TESTING.md`: the record of test-first changes and the current test count.
 
-## Transcription stays blocked
+## Transcription: wallet only, with the user's approval
 
 Transcription (`POST /v1/audio/transcriptions`; models `gigaam-v3`, the default, `whisper-1` and
 `whisper-podlodka-turbo`) is billed per minute of audio, and no remaining-quota endpoint for it is
-verified. The repository owner decided to keep it fail-closed, like SpeechCore
-uploads:
+verified. The repository owner decided:
 
-- `check transcribe` is the only command that reaches the network. It always ends `blocked`.
-- `run` is refused before any HTTP call or audio read; `resume` is refused because the call is
-  synchronous and has no provider job.
-- Do not unblock it, add an opt-in flag, or call the endpoint directly with `curl` or an SDK.
-  Unblocking needs a verified remaining-minutes endpoint, a locally verified audio duration
-  rounded up to whole minutes, and the owner's explicit decision.
+- A subscription key stays fail-closed: `check` and `run` end `blocked` at the guard, before any
+  POST. Do not add an opt-in for it or probe undocumented quota endpoints; unblocking needs a
+  verified remaining-minutes endpoint and the owner's explicit decision.
+- A wallet key can transcribe, but only after the user approves the estimated cost:
+  `run transcribe --file AUDIO --minutes N --wallet-limit RUB`. `--minutes` is the locally verified
+  length, rounded up; `--wallet-limit` is never set without the user's explicit yes.
+- `resume` is refused because the call is synchronous and has no provider job.
+- Never call the endpoint directly with `curl` or an SDK.
 - Keep SKILL.md, README.md and STARTER_RELAY.md limited to what the helper does and what the
   provider documents. `tests/test_whisper.py` checks the key claims.
 

@@ -416,3 +416,17 @@ first. **154 tests passed** (1 skipped outside a tag build), both normally and
 with `LC_ALL=C PYTHONUTF8=0`, with no `EncodingWarning` under
 `-X warn_default_encoding`, and on Python 3.10.22 (Docker `python:3.10-slim`,
 non-root, no network).
+
+## Wallet-paid transcription and SpeechCore uploads
+
+Port from neuraldeep-diarization `309f18a`. With a wallet key and the user's
+approval (`--wallet-limit`) the shared helper now posts `file` and `model` to
+`/v1/audio/transcriptions` and validates the synchronous answer, or posts the
+file to SpeechCore's `/upload` and polls the job; subscription keys stay blocked
+at the guard, since neither service has a verified remaining-quota endpoint.
+`--minutes` is required for every minute-billed service, and the wallet warning
+names the price row's output-token rate when it has one. This skill's SKILL.md, README.md, AGENTS.md, STARTER_RELAY.md and `client` rule now describe wallet transcription; `tests/test_whisper.py` now checks that a subscription run sends nothing and a wallet check asks for approval, and its documentation tests failed first.
+The new shared tests failed first. **159 tests passed** (1 skipped outside a tag
+build), both normally and with `LC_ALL=C PYTHONUTF8=0`, with no `EncodingWarning`
+under `-X warn_default_encoding`, and on Python 3.10.22 (Docker
+`python:3.10-slim`, non-root, no network).

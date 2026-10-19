@@ -2,10 +2,11 @@
 
 ## Before spending
 
-In this repository only `check transcribe` reaches the network: transcription `run`
-is refused before preflight, and `resume` is refused for synchronous services.
-The rest of this guide describes the shared helper for services where
-submission is enabled (Search, OCR, Images).
+In this repository `check transcribe` and `run transcribe` reach the network:
+a subscription key is blocked at the guard, because no remaining-quota endpoint is
+verified, and a wallet key pays only up to the amount the user approved;
+`resume` is refused for synchronous services. The rest of this guide describes
+the shared helper for every service.
 
 The helper spends from a Starter subscription, or from the wallet only up to an
 amount the user approved (`--wallet-limit`, see SKILL.md, "Paying from the wallet").
@@ -46,7 +47,7 @@ No credentials, account snapshots, or live remaining values are test fixtures.
 | OCR | `/v1/ocr/balance`: `tier`, `daily_pages.remaining`, `monthly_pages.remaining` | `ocr:extract` |
 | Images | `/v1/images/quota`: `tier`, `img.day.remaining`, `img.month.remaining` | `image:generate`, `image:upscale`, `image:background_remove`, `image:enhance`, `image:avatar` |
 | SpeechCore | **Unverified: uploads blocked.** The reference does not identify a live remaining-quota endpoint. | `speechcore` (non-premium alone is insufficient) |
-| Transcriptions | **Unverified: transcription blocked.** The reference names no remaining-quota endpoint for `/v1/audio/transcriptions`; `GET /v1/audio/quota` and `GET /v1/audio/transcriptions/quota` returned 404 on 2026-10-17. `/v1/limits` has only chat and vector buckets. | `gigaam-v3`, `whisper-1`, `whisper-podlodka-turbo` (each `billing: minute`; the helper checks the chosen model's row; non-premium alone is insufficient) |
+| Transcriptions | **Unverified: subscription transcription blocked** (a wallet key can pay with the user's approval). The reference names no remaining-quota endpoint for `/v1/audio/transcriptions`; `GET /v1/audio/quota` and `GET /v1/audio/transcriptions/quota` returned 404 on 2026-10-17. `/v1/limits` has only chat and vector buckets. | `gigaam-v3`, `whisper-1`, `whisper-podlodka-turbo` (each `billing: minute`; the helper checks the chosen model's row; non-premium alone is insufficient) |
 | Diarization | `/v1/audio/diarize/quota`: `unit: minute`, `tier`, `day` and `month` each with `used` and `limit`; there is no `remaining` field, so the helper uses `limit - used` (verified read-only on 2026-10-18) | `audio:diarize` (`billing: unit`) |
 
 OCR requires a locally verified input page count through `--pages`. `fast`
@@ -63,13 +64,14 @@ jobs. Advertised daily ceilings are not a live budget and cannot unblock uploads
 
 Transcription is synchronous like Search: the transcript is the POST response and
 there is no provider job ID, so `resume` is refused for it. It is billed per
-minute of audio. Unblocking it needs a verified remaining-minutes bucket **and**
-a locally verified audio duration, rounded up to whole minutes, as the quota cost.
+minute of audio. A subscription key needs a verified remaining-minutes bucket,
+which does not exist yet; a wallet key pays the locally verified duration,
+rounded up to whole minutes (`--minutes`), at the model's price, after approval.
 
 ## Run and recover
 
-For transcription none of this recovery applies: `run` and `resume` are refused, and
-only the read-only check below is available. Use the worked commands in
+Transcription has no provider job, so `resume` never applies to it; the state file
+still records the submission and must not be reused. Use the worked commands in
 [SKILL.md](SKILL.md), from this directory.
 `check OPERATION` performs only read-only preflight. `run OPERATION` performs
 preflight, one submission, bounded polling where applicable, and artifact save.
@@ -130,7 +132,8 @@ its exit code and envelope status. A pre-existing output file is not proof that
 the current run succeeded; only a completed envelope's artifact hash identifies
 the result of this run. OCR artifacts contain the API's markdown-format JSON;
 image artifacts require PNG MIME/signature; SpeechCore artifacts contain validated
-transcript JSON. Transcription produces no artifacts while it is blocked. Invalid MIME, empty bodies and error-shaped JSON produce
+transcript JSON; transcription artifacts contain the validated answer (`text`, and
+timed `segments` when present), and any other answer is `reconciliation_required`. Invalid MIME, empty bodies and error-shaped JSON produce
 `poll_error` with the same provider job ID, not a completed artifact. These checks
 do not replace full image decoding, visual review, or factual transcript review.
 
@@ -146,7 +149,7 @@ Relay installation or configuration changes:
   `submitted`, `timed_out`, `poll_error`, `failed`, or `completed`.
   `wallet_approval_required` means nothing was sent: a wallet key would pay, and
   the user must approve the amount first. A read-only check reports `ready`, not
-  a completed provider job; transcription never reports `ready`, because its check always ends `blocked`.
+  a completed provider job; transcription reports `ready` only for an approved wallet key.
 - `artifacts`: references with `sha256` and `provenance` (endpoint, retrieval time,
   `trust: untrusted_data`); no transcript or extracted content in the envelope.
 - `quota_observed`: timestamp, endpoint, relevant service buckets, required units,
