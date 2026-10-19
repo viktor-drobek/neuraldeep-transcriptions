@@ -164,6 +164,39 @@ processes them sequentially.
   so transcription stays `blocked`, whatever the advertised tier ceilings say.
 - `GET /v1/limits` and the public price list do not spend quota.
 
+## Paying from the wallet
+
+A NeuralDeep key pays either from a subscription or from the rouble wallet, never
+both (the mode is switched per key at <https://hub.neuraldeep.ru/app/keys>). In
+wallet mode the subscription quota does not apply and every operation costs money
+at the public price list. The helper therefore:
+
+- prefers a subscription key: with several keys, a wallet key is considered only
+  when no subscription key passes its quota check;
+- never spends from the wallet on its own. `check` and `run` end with the status
+  `wallet_approval_required`, the price, the estimated cost (the quota units times
+  the price, rounded up to whole kopecks) and the wallet balance, for example:
+
+  ```text
+  Key 1 of NEURALDEEP_API_KEY pays from the wallet, not a subscription: about 0.25 RUB
+  (1 x 0.25 RUB for gigaam-v3), wallet balance 370.05 RUB. Ask the user whether to pay;
+  only after a clear yes, run again with --wallet-limit 0.25
+  ```
+- pays only with `--wallet-limit RUB`, the roubles the user approved for this run,
+  and blocks before any request when the estimate exceeds that limit, the wallet
+  balance, or the key's own spending cap.
+
+**Show the warning to the user and wait for an explicit yes to that amount.**
+Never pass `--wallet-limit` on your own, never raise an approved amount, and treat
+a "no" or no answer as the end of the task. In this skill the submission itself stays disabled, also from the wallet: `check` only reports the
+billing mode and the price, and `run` is refused.
+The estimate uses the public price list and the same units as the quota; the
+provider may round or count differently, so it is an estimate, not an invoice.
+
+```bash
+python3 scripts/client.py check transcribe
+```
+
 ## Error handling
 
 The helper explains an HTTP error with a fixed text for its status, never the
