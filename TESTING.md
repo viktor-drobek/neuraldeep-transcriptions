@@ -430,3 +430,13 @@ The new shared tests failed first. **159 tests passed** (1 skipped outside a tag
 build), both normally and with `LC_ALL=C PYTHONUTF8=0`, with no `EncodingWarning`
 under `-X warn_default_encoding`, and on Python 3.10.22 (Docker
 `python:3.10-slim`, non-root, no network).
+
+## Missing home directory
+
+Port from neuraldeep-diarization `03eb992`. When no home directory can be
+determined, `resolve_keys()` treats it as "no .env" and the CLI prints the
+blocked envelope instead of a traceback. The Codex section of AGENTS.md names the environment and `${CODDY_HOME:-~/.coddy}/.env` instead of `~/.coddy`. The new shared test failed
+first. **160 tests passed** (1 skipped outside a tag build), both normally and
+with `LC_ALL=C PYTHONUTF8=0`, with no `EncodingWarning` under
+`-X warn_default_encoding`, and on Python 3.10.22 (Docker `python:3.10-slim`,
+non-root, no network).
