@@ -2,12 +2,15 @@
 
 ## Before spending
 
-In this repository only `check transcribe` reaches the network: transcription `run`
-is refused before preflight, and `resume` is refused for synchronous services.
-The rest of this guide describes the shared helper for services where
-submission is enabled (Search, OCR, Images).
+In this repository `check transcribe` and `run transcribe` reach the network:
+a subscription key is blocked at the guard, because no remaining-quota endpoint is
+verified, and a wallet key pays only up to the amount the user approved;
+`resume` is refused for synchronous services. The rest of this guide describes
+the shared helper for every service.
 
-The helper is deliberately restricted to Starter subscription billing. Every
+The helper spends from a Starter subscription, or from the wallet only up to an
+amount the user approved (`--wallet-limit`, see SKILL.md, "Paying from the wallet").
+For a subscription key every
 `run` re-reads `GET /v1/limits`, the public wallet prices, and the service quota.
 All of these must pass:
 
@@ -44,7 +47,8 @@ No credentials, account snapshots, or live remaining values are test fixtures.
 | OCR | `/v1/ocr/balance`: `tier`, `daily_pages.remaining`, `monthly_pages.remaining` | `ocr:extract` |
 | Images | `/v1/images/quota`: `tier`, `img.day.remaining`, `img.month.remaining` | `image:generate`, `image:upscale`, `image:background_remove`, `image:enhance`, `image:avatar` |
 | SpeechCore | **Unverified: uploads blocked.** The reference does not identify a live remaining-quota endpoint. | `speechcore` (non-premium alone is insufficient) |
-| Transcriptions | **Unverified: transcription blocked.** The reference names no remaining-quota endpoint for `/v1/audio/transcriptions`; `GET /v1/audio/quota` and `GET /v1/audio/transcriptions/quota` returned 404 on 2026-10-17. `/v1/limits` has only chat and vector buckets. | `gigaam-v3`, `whisper-1`, `whisper-podlodka-turbo` (each `billing: minute`; the helper checks the chosen model's row; non-premium alone is insufficient) |
+| Transcriptions | **Unverified: subscription transcription blocked** (a wallet key can pay with the user's approval). The reference names no remaining-quota endpoint for `/v1/audio/transcriptions`; `GET /v1/audio/quota` and `GET /v1/audio/transcriptions/quota` returned 404 on 2026-10-17. `/v1/limits` has only chat and vector buckets. | `gigaam-v3`, `whisper-1`, `whisper-podlodka-turbo` (each `billing: minute`; the helper checks the chosen model's row; non-premium alone is insufficient) |
+| Diarization | `/v1/audio/diarize/quota`: `unit: minute`, `tier`, `day` and `month` each with `used` and `limit`; there is no `remaining` field, so the helper uses `limit - used` (verified read-only on 2026-10-18) | `audio:diarize` (`billing: unit`) |
 
 OCR requires a locally verified input page count through `--pages`. `fast`
 charges one quota page per sheet; `pro` charges two. The helper does not parse
@@ -60,18 +64,44 @@ jobs. Advertised daily ceilings are not a live budget and cannot unblock uploads
 
 Transcription is synchronous like Search: the transcript is the POST response and
 there is no provider job ID, so `resume` is refused for it. It is billed per
-minute of audio. Unblocking it needs a verified remaining-minutes bucket **and**
-a locally verified audio duration, rounded up to whole minutes, as the quota cost.
+minute of audio. A subscription key needs a verified remaining-minutes bucket,
+which does not exist yet; a wallet key pays the locally verified duration,
+rounded up to whole minutes (`--minutes`), at the model's price, after approval.
 
 ## Run and recover
 
-For transcription none of this recovery applies: `run` and `resume` are refused, and
-only the read-only check below is available. Use the worked commands in
+Transcription has no provider job, so `resume` never applies to it; the state file
+still records the submission and must not be reused. Use the worked commands in
 [SKILL.md](SKILL.md), from this directory.
 `check OPERATION` performs only read-only preflight. `run OPERATION` performs
 preflight, one submission, bounded polling where applicable, and artifact save.
 `--payload` reads JSON for Search or image generation; `--file` reads a local
 OCR/image input. Uploads require explicit user authorization for the content.
+
+Every upload is streamed in blocks: the multipart body is read from the file
+8 KB at a time (http.client's block size) and sent with a normal `Content-Length`, so the socket timeout
+bounds each block rather than the whole file, and no copy of the file is held
+in memory. The input is opened before any request, and anything but a readable
+regular file blocks there. Exactly the size checked is sent; a file that
+shrinks meanwhile fails the request.
+NeuralDeep documents no chunked or resumable upload for any of these endpoints,
+so a broken upload is never continued or resent: it ends like any failed submission.
+Only diarization documents a file size limit (500 MB), and the helper enforces
+exactly that; the other services document none, so none is assumed.
+
+Before any request, `run` also checks where the paid result will go: an
+`--output` that is the input file (also through a link or a case alias), a
+name the file system refuses ("Artifact path is not usable"; a new name is
+created and removed again to find names vfat or exFAT reject), the state file
+under a case alias, a directory, an existing FIFO, socket or device (also
+behind a symlink: "Artifact path is not a regular file"), and an input file that is the state file
+("Input file must differ from the state file"), or whose directory (before
+symlinks are resolved) is missing or read-only, blocks before the submission
+("Artifact path must differ from the input file", "Artifact path is a
+directory", "Artifact directory is missing or not writable"); the directory
+must be readable, writable and searchable. Another user's existing file in a
+sticky directory such as `/tmp`, which rename cannot replace, also blocks
+("Artifact path belongs to another user in a sticky directory").
 
 Choose a **new private state path** for new work. `run` refuses an existing
 state file, preventing accidental duplicate submissions. Do not delete or
@@ -102,7 +132,8 @@ its exit code and envelope status. A pre-existing output file is not proof that
 the current run succeeded; only a completed envelope's artifact hash identifies
 the result of this run. OCR artifacts contain the API's markdown-format JSON;
 image artifacts require PNG MIME/signature; SpeechCore artifacts contain validated
-transcript JSON. Transcription produces no artifacts while it is blocked. Invalid MIME, empty bodies and error-shaped JSON produce
+transcript JSON; transcription artifacts contain the validated answer (`text`, and
+timed `segments` when present), and any other answer is `reconciliation_required`. Invalid MIME, empty bodies and error-shaped JSON produce
 `poll_error` with the same provider job ID, not a completed artifact. These checks
 do not replace full image decoding, visual review, or factual transcript review.
 
@@ -114,15 +145,21 @@ Relay installation or configuration changes:
 - `task_id`: caller-owned task identifier (`--task-id`).
 - `service`: service name; `provider_job_id`: durable async provider ID, or null
   for synchronous Search and transcription and for unacknowledged submissions. Never fabricate one.
-- `status`: `blocked`, `reconciliation_required`, `submitted`, `timed_out`,
-  `poll_error`, `failed`, or `completed`. A read-only check reports `ready`, not
-  a completed provider job; transcription never reports `ready`, because its check always ends `blocked`.
+- `status`: `blocked`, `wallet_approval_required`, `reconciliation_required`,
+  `submitted`, `timed_out`, `poll_error`, `failed`, or `completed`.
+  `wallet_approval_required` means nothing was sent: a wallet key would pay, and
+  the user must approve the amount first. A read-only check reports `ready`, not
+  a completed provider job; transcription reports `ready` only for an approved wallet key.
 - `artifacts`: references with `sha256` and `provenance` (endpoint, retrieval time,
   `trust: untrusted_data`); no transcript or extracted content in the envelope.
-- `quota_observed`: timestamp, endpoint, relevant service buckets, required units;
+- `quota_observed`: timestamp, endpoint, relevant service buckets, required units,
+  and the key used, by variable and number (`key`), never its value;
   this is private runtime metadata, not a future spending guarantee.
 - `timeouts`, `errors`, and `updated_at`: operational diagnostics. Error text is
   sanitized; it does not include authorization headers or provider response bodies.
+  An HTTP error reads `HTTP <code> (<fixed hint>)`, with `retry after N s` and
+  `window session|week` only when the provider sends well-formed values; the
+  table in SKILL.md lists every explained status.
 
 Failed and timed-out jobs have no success artifact. Transfer referenced files
 through an authorized artifact channel; a local path is not a remote download

@@ -35,4 +35,4 @@ failure with a special case in a caller.
 
 ## This service
 
-Transcription with every model (`gigaam-v3`, the default, `whisper-1` and `whisper-podlodka-turbo`) stays blocked until a remaining-quota endpoint is verified. `check transcribe [--model MODEL]` is the only network-capable command, `run` sends nothing, and `resume` refuses the synchronous service. A `blocked` result is final: never add an opt-in, a direct API call, a fallback, or an undocumented quota probe.
+Transcription with every model (`gigaam-v3`, the default, `whisper-1` and `whisper-podlodka-turbo`) stays blocked for a subscription key until a remaining-quota endpoint is verified; a wallet key transcribes only up to `--wallet-limit`, the amount the user approved, with `--minutes` as the verified length. The answer is validated (`text`, timed `segments` when present) and anything else is `reconciliation_required`; `resume` refuses the synchronous service. A `blocked` result is final: never add an opt-in, a direct API call, a fallback, or an undocumented quota probe.

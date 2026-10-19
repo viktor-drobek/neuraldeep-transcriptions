@@ -48,36 +48,48 @@ class WhisperTests(unittest.TestCase):
                 client.guard("whisper", "transcribe", lim, price, {}, units)
             self.assertNotIn("unverified", str(raised.exception))
 
-    def test_check_reads_only_limits_and_prices(self):
-        with patch.object(client, "resolve_key", return_value="fixture"), \
+    def test_subscription_check_is_blocked_and_reads_no_quota(self):
+        with patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
                 patch.object(client, "request", side_effect=[limits(), prices()]) as req:
-            code, result = run_cli(["check"])
+            code, result = run_cli(["check", "--minutes", "1"])
         self.assertEqual(code, 1)
         self.assertEqual(result["status"], "blocked")
         self.assertEqual(result["service"], "whisper")
         self.assertIn("unverified", result["errors"][0])
+        self.assertIn("wallet", result["errors"][0])
         self.assertEqual([c.args[:2] for c in req.call_args_list],
                          [("GET", client.HUB + "/limits"), ("GET", client.PRICES)])
 
-    def test_run_is_blocked_before_any_request_or_file_read(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_key", return_value="fixture"), \
-                patch.object(client, "request") as req, patch.object(client, "multipart") as body:
-            state, output = Path(tmp) / "state.json", Path(tmp) / "transcript.json"
-            code, result = run_cli(["run", "transcribe", "--file", str(Path(tmp) / "missing.wav"),
+    def test_wallet_check_asks_for_approval_with_the_model_price(self):
+        wallet = {"tier": "starter", "key": {"status": "ok", "billing_mode": "wallet",
+                                             "cap": {"spend_cap_rub": 0.0, "spent_rub": 0.0, "cap_blocked": False}},
+                  "wallet": {"balance_rub": 50.0, "spent_rub_30d": 0.0}}
+        with patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
+                patch.object(client, "request", side_effect=[wallet, prices()]):
+            code, result = run_cli(["check", "--minutes", "4"])
+        self.assertEqual((code, result["status"]), (1, "wallet_approval_required"))
+        self.assertEqual((result["quota_observed"]["price_id"], result["quota_observed"]["estimate_rub"]), ("gigaam-v3", 1.0))
+        self.assertIn("--wallet-limit 1.00", result["errors"][0])
+
+    def test_subscription_run_sends_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
+                patch.object(client, "request", side_effect=[limits(), prices()]) as req:
+            state, output, audio = Path(tmp) / "state.json", Path(tmp) / "transcript.json", Path(tmp) / "a.wav"
+            audio.write_bytes(b"RIFF fixture")
+            code, result = run_cli(["run", "transcribe", "--file", str(audio), "--minutes", "1",
                                     "--state", str(state), "--output", str(output)])
             saved = json.loads(state.read_text(encoding="utf-8"))
             self.assertFalse(output.exists())
         self.assertEqual(code, 1)
         self.assertEqual(result["status"], "blocked")
-        self.assertIn("transcription disabled", result["errors"][0])
+        self.assertIn("subscription transcription disabled", result["errors"][0])
         self.assertEqual(saved["status"], "blocked")
         self.assertIsNone(saved["provider_job_id"])
         self.assertEqual(saved["artifacts"], [])
-        req.assert_not_called()
-        body.assert_not_called()
+        self.assertNotIn("POST", [c.args[0] for c in req.call_args_list])
 
     def test_resume_job_id_is_refused_for_synchronous_transcription(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_key", return_value="fixture"), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
                 patch.object(client, "request") as req:
             state = Path(tmp) / "state.json"
             code, result = run_cli(["resume", "--job-id", "job-fixture", "--state", str(state),
@@ -89,7 +101,7 @@ class WhisperTests(unittest.TestCase):
         req.assert_not_called()
 
     def test_resume_of_blocked_state_makes_no_request(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_key", return_value="fixture"), \
+        with tempfile.TemporaryDirectory() as tmp, patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), \
                 patch.object(client, "request") as req:
             state = Path(tmp) / "state.json"
             client.save_state(state, client.state_template("task-fixture", "whisper"))
@@ -101,7 +113,7 @@ class WhisperTests(unittest.TestCase):
     def test_resume_of_edited_resumable_state_is_blocked_not_crashed(self):
         for status in ("submitted", "timed_out", "poll_error"):
             with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp, \
-                    patch.object(client, "resolve_key", return_value="fixture"), patch.object(client, "request") as req:
+                    patch.object(client, "resolve_keys", return_value=("NEURALDEEP_API_KEY", ["fixture"])), patch.object(client, "request") as req:
                 state = Path(tmp) / "state.json"
                 saved = client.state_template("task-fixture", "whisper")
                 saved.update(status=status, provider_job_id="job-fixture")
@@ -120,19 +132,20 @@ class WhisperTests(unittest.TestCase):
         skill = (root / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("name: neuraldeep-transcriptions\n", skill)
         self.assertIn("/v1/audio/transcriptions", skill)
-        self.assertIn("python3 scripts/client.py check transcribe", skill)
+        self.assertIn("python3 scripts/client.py check transcribe --minutes", skill)
+        self.assertIn("python3 scripts/client.py run transcribe", skill)
         relay = (root / "STARTER_RELAY.md").read_text(encoding="utf-8")
-        self.assertRegex(relay, r"\| Transcriptions \| \*\*Unverified: transcription blocked\.\*\*")
-        self.assertIn("In this repository only `check transcribe` reaches the network", relay)
+        self.assertRegex(relay, r"\| Transcriptions \| \*\*Unverified: subscription transcription blocked\*\*")
+        self.assertIn("a subscription key is blocked at the guard", relay)
         self.assertNotIn("used only documented read-only GETs", relay)
 
     def test_skill_does_not_advertise_what_the_helper_refuses(self):
         skill = (Path(__file__).parents[1] / "SKILL.md").read_text(encoding="utf-8")
-        for claim in ("drop-in", "Short audio transcribed", "short audio transcription",
-                      "NeuralDeep GPUs", "before any network call or file read"):
+        for claim in ("drop-in", "NeuralDeep GPUs", "does not transcribe audio today", "reference only",
+                      "In this skill the submission itself stays disabled"):
             self.assertNotIn(claim, skill)
-        # run still resolves the key and leaves a blocked state file behind.
-        self.assertIn("writes a `blocked` state file", skill)
+        for needle in ("wallet_approval_required", "--wallet-limit", "--minutes", "subscription key"):
+            self.assertIn(needle, skill)
 
     def test_agents_guide_covers_codex_coddy_and_the_block(self):
         guide = (Path(__file__).parents[1] / "AGENTS.md").read_text(encoding="utf-8")
@@ -148,7 +161,7 @@ class WhisperTests(unittest.TestCase):
         self.assertEqual(len(section), 2, "missing blocked section")
         head, rules = section[0], section[1].split("\n## ", 1)[0]
         self.assertLess(len(head.split("\n# ", 1)[1]), 1500, "blocked section must come early")
-        for needle in ("final answer", "neuraldeep-auth.json", "NEURALDEEP_API_KEY",
+        for needle in ("final answer", "${CODDY_HOME:-~/.coddy}/.env", "NEURALDEEP_TRANSCRIPTIONS_API_KEY", "NEURALDEEP_API_KEY",
                        "POST /v1/audio/transcriptions", "by hand", "supervisor", "undocumented"):
             self.assertIn(needle, rules)
         self.assertIn("never bypass", skill.split("---", 2)[1])

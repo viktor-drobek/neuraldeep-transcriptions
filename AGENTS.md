@@ -13,26 +13,27 @@ repository**. To *use* the skill, read [SKILL.md](SKILL.md) and [STARTER_RELAY.m
   this repo) and documentation checks (`test_examples.py`).
 - `TESTING.md`: the record of test-first changes and the current test count.
 
-## Transcription stays blocked
+## Transcription: wallet only, with the user's approval
 
 Transcription (`POST /v1/audio/transcriptions`; models `gigaam-v3`, the default, `whisper-1` and
 `whisper-podlodka-turbo`) is billed per minute of audio, and no remaining-quota endpoint for it is
-verified. The repository owner decided to keep it fail-closed, like SpeechCore
-uploads:
+verified. The repository owner decided:
 
-- `check transcribe` is the only command that reaches the network. It always ends `blocked`.
-- `run` is refused before any HTTP call or audio read; `resume` is refused because the call is
-  synchronous and has no provider job.
-- Do not unblock it, add an opt-in flag, or call the endpoint directly with `curl` or an SDK.
-  Unblocking needs a verified remaining-minutes endpoint, a locally verified audio duration
-  rounded up to whole minutes, and the owner's explicit decision.
+- A subscription key stays fail-closed: `check` and `run` end `blocked` at the guard, before any
+  POST. Do not add an opt-in for it or probe undocumented quota endpoints; unblocking needs a
+  verified remaining-minutes endpoint and the owner's explicit decision.
+- A wallet key can transcribe, but only after the user approves the estimated cost:
+  `run transcribe --file AUDIO --minutes N --wallet-limit RUB`. `--minutes` is the locally verified
+  length, rounded up; `--wallet-limit` is never set without the user's explicit yes.
+- `resume` is refused because the call is synchronous and has no provider job.
+- Never call the endpoint directly with `curl` or an SDK.
 - Keep SKILL.md, README.md and STARTER_RELAY.md limited to what the helper does and what the
   provider documents. `tests/test_whisper.py` checks the key claims.
 
 ## The shared helper
 
 `scripts/client.py` is shared by every neuraldeep-* repo (speechcore, search, ocr, images,
-transcriptions) and must stay identical across them except for the `SERVICE = "..."` line. Port a
+transcriptions, diarization) and must stay identical across them except for the `SERVICE = "..."` line. Port a
 change to every sibling repo, each through its own PR. Check a port against a sibling checkout:
 
 ```bash
@@ -49,17 +50,17 @@ Tests are offline: HTTP is mocked and no billed endpoint is called. Run them wit
 blanked so a real key can never be read:
 
 ```bash
-env -u NEURALDEEP_API_KEY CODDY_HOME=/nonexistent python3 -B -m unittest discover -s tests
+env -u NEURALDEEP_API_KEY -u NEURALDEEP_TRANSCRIPTIONS_API_KEY CODDY_HOME=/nonexistent python3 -B -m unittest discover -s tests
 ```
 
 Before opening a PR, also run the suite under a non-UTF-8 locale and with encoding warnings on:
 
 ```bash
-env -u NEURALDEEP_API_KEY CODDY_HOME=/nonexistent LC_ALL=C PYTHONUTF8=0 python3 -B -m unittest discover -s tests
+env -u NEURALDEEP_API_KEY -u NEURALDEEP_TRANSCRIPTIONS_API_KEY CODDY_HOME=/nonexistent LC_ALL=C PYTHONUTF8=0 python3 -B -m unittest discover -s tests
 ```
 
 ```bash
-env -u NEURALDEEP_API_KEY CODDY_HOME=/nonexistent python3 -X warn_default_encoding -B -m unittest discover -s tests
+env -u NEURALDEEP_API_KEY -u NEURALDEEP_TRANSCRIPTIONS_API_KEY CODDY_HOME=/nonexistent python3 -X warn_default_encoding -B -m unittest discover -s tests
 ```
 
 - Work test-first: add the regression test, watch it fail, then fix. Say so in the commit.
@@ -71,6 +72,8 @@ env -u NEURALDEEP_API_KEY CODDY_HOME=/nonexistent python3 -X warn_default_encodi
 
 ## Safety rules
 
+- Never pass `--wallet-limit` without the user's explicit approval of that amount: a wallet
+  key spends money. `wallet_approval_required` is a question for the user, not an error to fix.
 - Never send audio to the live API while developing or testing. `check` is read-only, but run it
   only when the user asks.
 - Never add, print, or commit credentials, state files, audio or transcripts.
@@ -137,14 +140,16 @@ it must equal the tag without the `v`:
 
 - Codex reads this file automatically. Its default sandbox blocks network access and writes
   outside the workspace, which is all the offline tests need.
-- A live `check` needs the network and reads the key from `~/.coddy`, outside the workspace. Ask
+- A live `check` needs the network and reads the key from the environment or
+  `${CODDY_HOME:-~/.coddy}/.env`, outside the workspace. Ask
   the user before requesting broader sandbox access; never widen it to send audio.
 
 ## Coddy
 
 - Coddy loads this file from the workspace on its own; nothing needs configuring.
-- The skill reads the key from `${CODDY_HOME:-~/.coddy}/providers/neuraldeep/neuraldeep-auth.json`
-  (field `api_key`), then falls back to `NEURALDEEP_API_KEY`. Sign in with
-  `coddy providers login neuraldeep`; never ask the user to paste a key into the chat.
+- The skill reads its own `NEURALDEEP_TRANSCRIPTIONS_API_KEY`, then the shared `NEURALDEEP_API_KEY`, each from the
+  environment, then from `${CODDY_HOME:-~/.coddy}/.env` (several keys separated by commas;
+  the first that passes the free checks is used). It does not read the Coddy provider file.
+  Ask the user to add a missing key to `${CODDY_HOME:-~/.coddy}/.env`; never ask for a key in the chat.
 - Run skill commands from the skill directory, and keep state files in a private directory
   outside the checkout.
