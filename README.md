@@ -11,8 +11,7 @@ Model pages: <https://hub.neuraldeep.ru/models/gigaam-v3>, <https://hub.neuralde
 
 ## Author
 
-This skill was authored by **Claude Opus 5.5** after the neuraldeep-* skills
-authored by the **kimi2.6** and **qwen3.8 27b** models, and is published by **viktor-drobek**.
+**Viktor Drobek**
 
 ## Install
 
